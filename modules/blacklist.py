@@ -1,16 +1,11 @@
-# modules/blacklist.py
-from app import app
-from pyrogram import filters
-from pyrogram.enums import ChatType
+import asyncio
 import json
 import os
-import asyncio
-from modules.styles import success, error, info, result_box
+from pyrogram import Client, filters, enums
+from pyrogram.enums import ChatType, ChatMemberStatus
 
-print("✅ Blacklist module loaded!")
-
+# --- KONFIGURASI DATABASE ---
 BLACKLIST_FILE = "data/blacklist.json"
-
 if not os.path.exists("data"):
     os.makedirs("data")
 
@@ -18,100 +13,125 @@ def get_blacklist():
     try:
         with open(BLACKLIST_FILE, "r") as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         return {"groups": []}
 
 def save_blacklist(data):
     with open(BLACKLIST_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-@app.on_message(filters.command("bl", ".") & filters.me)
-async def add_blacklist(client, message):
+# --- MODULE ADMIN ---
+
+@Client.on_message(filters.command("adminlist", ".") & filters.me)
+async def adminlist_handler(client, message):
     if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        await message.reply(error("Harus di dalam grup!"))
-        return
+        return await message.edit("❌ Fitur ini hanya untuk Grup!")
     
+    await message.edit("🔍 **Mengambil daftar admin...**")
+    out_str = f"🛡️ **ADMIN LIST: {message.chat.title}**\n\n"
+    owner = ""
+    admins = []
+
+    try:
+        async for m in client.get_chat_members(message.chat.id, filter=enums.ChatMembersFilter.ADMINISTRATORS):
+            name = m.user.first_name if not m.user.is_deleted else "Akun Terhapus"
+            if m.status == ChatMemberStatus.OWNER:
+                owner = f"👑 **Owner:** [{name}](tg://user?id={m.user.id})\n"
+            else:
+                admins.append(f"🔹 [{name}](tg://user?id={m.user.id})")
+        
+        await message.edit(owner + "\n".join(admins))
+    except Exception as e:
+        await message.edit(f"❌ **Gagal:** `{e}`")
+
+@Client.on_message(filters.command(["ban", "kick", "unban"], ".") & filters.me)
+async def moderation_handler(client, message):
+    cmd = message.command[0]
+    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        return await message.edit("❌ Gunakan di dalam grup!")
+
+    user_id = None
+    if message.reply_to_message:
+        user_id = message.reply_to_message.from_user.id
+    elif len(message.command) > 1:
+        user_id = message.command[1]
+
+    if not user_id:
+        return await message.edit(f"❓ Mau di-{cmd} siapa? Reply atau masukan ID.")
+
+    try:
+        if cmd == "ban":
+            await client.ban_chat_member(message.chat.id, user_id)
+            await message.edit(f"✅ User `{user_id}` di-**BAN**.")
+        elif cmd == "kick":
+            await client.ban_chat_member(message.chat.id, user_id)
+            await client.unban_chat_member(message.chat.id, user_id)
+            await message.edit(f"✅ User `{user_id}` di-**KICK**.")
+        elif cmd == "unban":
+            await client.unban_chat_member(message.chat.id, user_id)
+            await message.edit(f"✅ User `{user_id}` di-**UNBAN**.")
+    except Exception as e:
+        await message.edit(f"❌ **Gagal:** `{e}`")
+
+# --- MODULE BLACKLIST & GCAST ---
+
+@Client.on_message(filters.command(["bl", "unbl"], ".") & filters.me)
+async def blacklist_logic(client, message):
+    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        return await message.edit("❌ Harus di dalam grup!")
+    
+    cmd = message.command[0]
     bl = get_blacklist()
     chat_id = message.chat.id
-    chat_title = message.chat.title or "Grup Tanpa Nama"
-    
-    if chat_id in bl["groups"]:
-        await message.reply(error(f"{chat_title} sudah di blacklist"))
-        return
-    
-    bl["groups"].append(chat_id)
-    save_blacklist(bl)
-    
-    await message.reply(success(f"{chat_title} ditambahkan ke blacklist"))
+    chat_title = message.chat.title
 
-@app.on_message(filters.command("unbl", ".") & filters.me)
-async def del_blacklist(client, message):
-    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        await message.reply(error("Harus di dalam grup!"))
-        return
-    
-    bl = get_blacklist()
-    chat_id = message.chat.id
-    chat_title = message.chat.title or "Grup Tanpa Nama"
-    
-    if chat_id not in bl["groups"]:
-        await message.reply(error(f"{chat_title} tidak ada di blacklist"))
-        return
-    
-    bl["groups"].remove(chat_id)
-    save_blacklist(bl)
-    
-    await message.reply(success(f"{chat_title} dihapus dari blacklist"))
+    if cmd == "bl":
+        if chat_id in bl["groups"]:
+            return await message.edit(f"ℹ️ `{chat_title}` sudah di blacklist.")
+        bl["groups"].append(chat_id)
+        save_blacklist(bl)
+        await message.edit(f"✅ `{chat_title}` ditambahkan ke blacklist.")
+    else:
+        if chat_id not in bl["groups"]:
+            return await message.edit(f"ℹ️ `{chat_title}` tidak ada di blacklist.")
+        bl["groups"].remove(chat_id)
+        save_blacklist(bl)
+        await message.edit(f"✅ `{chat_title}` dihapus dari blacklist.")
 
-@app.on_message(filters.command("listbl", ".") & filters.me)
-async def list_blacklist(client, message):
-    bl = get_blacklist()
+@Client.on_message(filters.command("gcast", ".") & filters.me)
+async def gcast_improved(client, message):
+    # Logika: Ambil konten dari reply atau dari teks command
+    msg = message.reply_to_message if message.reply_to_message else None
     
-    if not bl["groups"]:
-        await message.reply("📭 **Blacklist:** Belum ada grup")
-        return
-    
-    text = ""
-    for i, gid in enumerate(bl["groups"], 1):
-        try:
-            chat = await client.get_chat(gid)
-            text += f"{i}. {chat.title} (ID: {gid})\n"
-        except:
-            text += f"{i}. Grup Tidak Dikenal (ID: {gid})\n"
-    
-    await message.reply(result_box("DAFTAR BLACKLIST", text, "📋"))
+    if not msg and len(message.command) < 2:
+        return await message.edit("❌ Reply ke pesan atau ketik teks untuk GCAST!")
 
-@app.on_message(filters.command("gcast", ".") & filters.me)
-async def gcast_command(client, message):
-    if not message.reply_to_message:
-        await message.reply(error("Reply ke pesan yang mau di-GCAST!"))
-        return
-    
-    text = message.reply_to_message.text or message.reply_to_message.caption
-    if not text:
-        await message.reply(error("Pesan kosong!"))
-        return
-    
-    status = await message.reply("📢 **Broadcast dimulai...**")
-    
-    sent = 0
-    failed = 0
-    skipped = 0
-    
-    bl = get_blacklist()
-    blacklist = bl["groups"]
-    
+    status = await message.edit("📢 **Broadcast dimulai...**")
+    sent, failed, skipped = 0, 0, 0
+    blacklist = get_blacklist()["groups"]
+
     async for dialog in client.get_dialogs():
         if dialog.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
             if dialog.chat.id in blacklist:
                 skipped += 1
                 continue
             try:
-                await client.send_message(dialog.chat.id, text)
+                # Logika: Gunakan .copy() agar media (foto/video/stiker) ikut terkirim
+                if msg:
+                    await msg.copy(dialog.chat.id)
+                else:
+                    text_to_send = message.text.split(None, 1)[1]
+                    await client.send_message(dialog.chat.id, text_to_send)
+                
                 sent += 1
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.5) # Jeda agar tidak kena limit
             except:
                 failed += 1
-    
-    result = f"✅ Terkirim: {sent}\n⏭️ Di-skip: {skipped}\n❌ Gagal: {failed}"
-    await status.edit(result_box("HASIL GCAST", result, "📊"))
+
+    await status.edit(
+        f"📊 **HASIL GCAST**\n"
+        f"━━━━━━━━━━━━━━\n"
+        f"✅ Terkirim: `{sent}`\n"
+        f"⏭️ Di-skip: `{skipped}`\n"
+        f"❌ Gagal: `{failed}`"
+    )
