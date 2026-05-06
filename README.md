@@ -12,8 +12,8 @@ pkg update && pkg upgrade -y
 pkg install python nodejs ffmpeg git -y
 
 # 2. Clone repository
-git clone https://github.com/Bleszh/Benxx-Userbot.git
-cd Benxx-Userbot
+git clone https://github.com/ziyosen/AkeoUserbot.git
+cd AkeoUserbot
 
 # 3. Instalasi Library Python
 pip install -r requirements.txt
