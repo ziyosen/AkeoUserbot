@@ -26,18 +26,18 @@ Tekan Ctrl + A lalu D untuk keluar dari tampilan bot tanpa mematikannya. Gunakan
 
 Kategori,Perintah,Deskripsi
 📥 Download,.yt [url],Download video YouTube (MP4)
-,.yta [url],Download audio YouTube (MP3)
+.yta [url],Download audio YouTube (MP3)
 📢 Broadcast,.gcast [reply/text],Kirim pesan ke semua grup
 🔍 OSINT,.ip [alamat_ip],Lacak lokasi & ISP alamat IP
-,.ipsakti [ip],Lacak IP dengan informasi mendalam
-,.myip,Cek IP publik Termux kamu
+.ipsakti [ip],Lacak IP dengan informasi mendalam
+.myip,Cek IP publik Termux kamu
 📊 System,.alive,Cek status bot & kartu nama Developer
-,.ping,Cek latensi/kecepatan respon bot
-,.sysinfo,Cek spek HP & sisa memori (Storage)
-,.stats,Statistik penggunaan bot
+.ping,Cek latensi/kecepatan respon bot
+.sysinfo,Cek spek HP & sisa memori (Storage)
+.stats,Statistik penggunaan bot
 🛠️ Tools,.stiker,(Reply foto) Ubah jadi stiker
-,.whois,Ambil info detail profil pengguna
-,.purge,Hapus banyak pesan sekaligus
-,.del,Hapus pesan yang di-reply
+.whois,Ambil info detail profil pengguna
+.purge,Hapus banyak pesan sekaligus
+.del,Hapus pesan yang di-reply
 🛡️ Admin,.ban / .kick,Blokir atau tendang user dari grup
-,.mute / .unmute,Bungkam atau buka suara user
+.mute / .unmute,Bungkam atau buka suara user
