@@ -4,7 +4,13 @@ import time
 import os
 import platform
 from datetime import datetime
-from modules.styles import result_box
+
+# Fallback jika modules.styles tidak ada
+try:
+    from modules.styles import result_box
+except ImportError:
+    def result_box(title, content, icon="📊"):
+        return f"{icon} **{title}**\n━━━━━━━━━━━━━━━━━━━━━━━\n{content}"
 
 print("✅ Utils module loaded!")
 
@@ -27,9 +33,12 @@ async def ping_command(client, message):
 
 @app.on_message(filters.command("alive", ".") & filters.me)
 async def alive_command(client, message):
-    mod_count = len([f for f in os.listdir("modules") if f.endswith('.py')])
-    dev_link = "[Bleszh](https://t.me/Bleszh)"
+    try:
+        mod_count = len([f for f in os.listdir("modules") if f.endswith('.py')])
+    except FileNotFoundError:
+        mod_count = 0
     
+    dev_link = "[Bleszh](https://t.me/Bleszh)"
     content = (
         f"👤 **User:** {client.me.first_name}\n"
         f"👨‍💻 **Developer:** {dev_link}\n"
@@ -39,13 +48,15 @@ async def alive_command(client, message):
     )
     await message.edit(result_box("BENXX USERBOT ONLINE", content, "✨"))
 
-@app.on_message(filters.command("help", ".") & filters.me)
-async def help_command(client, message):
-    help_text = (
-        "👑 **ADMIN**: `ban, kick, mute, purge, del`\n"
-        "🔍 **OSINT**: `ip, ipsakti, myip, cekno`\n"
-        "🛠️ **TOOLS**: `stiker, emoji, whois`\n"
-        "📊 **STATS**: `stats, sysinfo, botinfo`\n"
-        "📦 **CORE**: `ping, alive, help`"
-    )
-    await message.edit(result_box("COMMAND LIST", help_text, "📖"))
+# Jika Anda sudah memiliki help.py dengan command .help yang lebih lengkap,
+# hapus atau comment handler di bawah ini untuk menghindari duplikasi.
+# @app.on_message(filters.command("help", ".") & filters.me)
+# async def help_command(client, message):
+#     help_text = (
+#         "👑 **ADMIN**: `ban, kick, mute, purge, del`\n"
+#         "🔍 **OSINT**: `ip, ipsakti, myip, cekno`\n"
+#         "🛠️ **TOOLS**: `stiker, emoji, whois`\n"
+#         "📊 **STATS**: `stats, sysinfo, botinfo`\n"
+#         "📦 **CORE**: `ping, alive, help`"
+#     )
+#     await message.edit(result_box("COMMAND LIST", help_text, "📖"))
